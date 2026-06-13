@@ -1,5 +1,73 @@
 import { useState, useEffect, useRef } from "react";
 
+// ── PIN LOCK ─────────────────────────────────────────────────────
+const CORRECT_PIN = "2420";
+
+function PinLock({ onUnlock }) {
+  const [pin, setPin] = useState("");
+  const [shake, setShake] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+
+  const handlePress = (val) => {
+    if (pin.length >= 4) return;
+    const newPin = pin + val;
+    setPin(newPin);
+    if (newPin.length === 4) {
+      setTimeout(() => {
+        if (newPin === CORRECT_PIN) {
+          onUnlock();
+        } else {
+          setShake(true);
+          setAttempts(a => a + 1);
+          setTimeout(() => { setShake(false); setPin(""); }, 600);
+        }
+      }, 200);
+    }
+  };
+
+  const handleDelete = () => setPin(p => p.slice(0, -1));
+
+  const keys = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0D0F1A", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif" }}>
+      <svg width="52" height="36" viewBox="0 0 52 36" style={{ marginBottom: 16 }}>
+        <ellipse cx="11" cy="26" rx="9" ry="16" fill="#1E6FFF" transform="rotate(-22 11 26)" />
+        <ellipse cx="41" cy="26" rx="9" ry="16" fill="#1E6FFF" transform="rotate(22 41 26)" />
+        <ellipse cx="11" cy="26" rx="5" ry="10" fill="#5BA4FF" transform="rotate(-22 11 26)" />
+        <ellipse cx="41" cy="26" rx="5" ry="10" fill="#5BA4FF" transform="rotate(22 41 26)" />
+      </svg>
+      <p style={{ color: "#5BA4FF", fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontWeight: 700, marginBottom: 4 }}>Timi's Workout 💙</p>
+      <p style={{ color: "#F0F4FF", fontSize: 18, fontWeight: 800, marginBottom: 32 }}>Enter PIN</p>
+
+      {/* PIN dots */}
+      <div style={{ display: "flex", gap: 16, marginBottom: 40, animation: shake ? "shake 0.4s ease" : "none" }}>
+        {[0,1,2,3].map(i => (
+          <div key={i} style={{ width: 16, height: 16, borderRadius: "50%", background: i < pin.length ? "#1E6FFF" : "#1E2240", border: "2px solid #1E6FFF", transition: "background 0.15s" }} />
+        ))}
+      </div>
+
+      {attempts > 0 && (
+        <p style={{ color: "#FF4FA3", fontSize: 12, marginBottom: 16, fontWeight: 600 }}>Wrong PIN. Try again 🔒</p>
+      )}
+
+      {/* Keypad */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 72px)", gap: 12 }}>
+        {keys.map((key, i) => (
+          <button key={i} onClick={() => key === "⌫" ? handleDelete() : key !== "" ? handlePress(key) : null}
+            style={{ width: 72, height: 72, borderRadius: 20, border: `1px solid #1E2240`, background: key === "" ? "transparent" : key === "⌫" ? "#1E2240" : "#131629", color: "#F0F4FF", fontSize: key === "⌫" ? 22 : 24, fontWeight: 700, cursor: key === "" ? "default" : "pointer", transition: "all 0.1s", fontFamily: "'Inter', sans-serif" }}>
+            {key}
+          </button>
+        ))}
+      </div>
+
+      <style>{`
+        @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-10px)} 40%{transform:translateX(10px)} 60%{transform:translateX(-10px)} 80%{transform:translateX(10px)} }
+      `}</style>
+    </div>
+  );
+}
+
 // ── STITCH PALETTE ───────────────────────────────────────────────
 const S = {
   bg: "#0D0F1A", card: "#131629", border: "#1E2240",
@@ -370,6 +438,9 @@ function HistoryTab() {
 
 // ── MAIN APP ─────────────────────────────────────────────────────
 export default function App() {
+  const [unlocked, setUnlocked] = useState(() => !!sessionStorage.getItem("timi_unlocked"));
+  if (!unlocked) return <PinLock onUnlock={() => { sessionStorage.setItem("timi_unlocked", "1"); setUnlocked(true); }} />;
+
   const todayIndex = new Date().getDay();
   const todayDateStr = new Date().toISOString().split("T")[0];
   const [hype] = useState(() => hypeMessages[Math.floor(Math.random() * hypeMessages.length)]);
