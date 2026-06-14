@@ -446,6 +446,8 @@ export default function App() {
   const [hype] = useState(() => hypeMessages[Math.floor(Math.random() * hypeMessages.length)]);
   const [showHype, setShowHype] = useState(true);
   const [tab, setTab] = useState("today");
+  const [photos, setPhotos] = useState(() => ls("timi_photos", []));
+  const fileInputRef = useRef(null);
   const [selectedDay, setSelectedDay] = useState(todayIndex);
   const [completedSets, setCompletedSets] = useState(() => ls(`timi_sets_${todayIndex}`, {}));
   const [restTimer, setRestTimer] = useState(false);
@@ -461,11 +463,7 @@ export default function App() {
   const workout = workoutPlan[selectedDay];
   const { color, accent } = workout;
 
-  // Auto hide hype message after 3 seconds
-  useEffect(() => {
-    hypeTimer.current = setTimeout(() => setShowHype(false), 3500);
-    return () => clearTimeout(hypeTimer.current);
-  }, []);
+  // Waits for tap — no auto dismiss
 
   useEffect(() => {
     setCompletedSets(ls(`timi_sets_${selectedDay}`, {}));
@@ -566,14 +564,63 @@ export default function App() {
 
       {/* Tabs */}
       <div style={{ display: "flex", borderBottom: `1px solid ${S.border}` }}>
-        {["today", "history"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "12px 0", background: "none", border: "none", borderBottom: tab === t ? `2px solid ${color}` : "2px solid transparent", color: tab === t ? accent : S.muted, fontWeight: tab === t ? 700 : 500, fontSize: 13, cursor: "pointer" }}>
-            {t === "today" ? "📋 Today" : "📅 History"}
+        {[["today","📋 Today"],["history","📅 History"],["journal","📸 Journal"]].map(([t, label]) => (
+          <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "12px 0", background: "none", border: "none", borderBottom: tab === t ? `2px solid ${color}` : "2px solid transparent", color: tab === t ? accent : S.muted, fontWeight: tab === t ? 700 : 500, fontSize: 12, cursor: "pointer" }}>
+            {label}
           </button>
         ))}
       </div>
 
-      {tab === "history" ? <div style={{ paddingTop: 16 }}><HistoryTab /></div> : (
+      {tab === "journal" ? (
+        <div style={{ padding: "16px" }}>
+          <p style={{ color: S.muted, fontSize: 13, marginBottom: 16 }}>Your personal gym photo diary 📸</p>
+
+          {/* Add photo button */}
+          <input ref={fileInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+            onChange={e => {
+              const file = e.target.files[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = ev => {
+                const newPhoto = {
+                  id: Date.now(),
+                  src: ev.target.result,
+                  date: new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
+                  workout: workout.title,
+                };
+                const updated = [newPhoto, ...photos];
+                setPhotos(updated);
+                ss("timi_photos", updated);
+              };
+              reader.readAsDataURL(file);
+            }}
+          />
+
+          <button onClick={() => fileInputRef.current.click()} style={{ width: "100%", padding: "14px", borderRadius: 14, border: `2px dashed ${color}`, background: `${color}11`, color: accent, fontWeight: 700, fontSize: 14, cursor: "pointer", marginBottom: 20 }}>
+            📸 Add Today's Gym Photo
+          </button>
+
+          {photos.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px 0", color: S.muted }}>
+              <div style={{ fontSize: 52 }}>📷</div>
+              <p style={{ marginTop: 14, fontSize: 14 }}>No photos yet — take one after your workout!</p>
+              <p style={{ fontSize: 12, marginTop: 8, color: S.muted }}>Track your transformation one session at a time 💙</p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {photos.map(p => (
+                <div key={p.id} style={{ borderRadius: 16, overflow: "hidden", background: S.card, border: `1px solid ${S.border}` }}>
+                  <img src={p.src} alt="gym" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+                  <div style={{ padding: "8px 10px" }}>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: accent }}>{p.workout}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 10, color: S.muted }}>{p.date}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : tab === "history" ? <div style={{ paddingTop: 16 }}><HistoryTab /></div> : (
         <>
           {/* Day Selector */}
           <div style={{ display: "flex", gap: 6, padding: "12px 16px", overflowX: "auto" }}>
@@ -671,7 +718,6 @@ export default function App() {
               )}
             </>
           )}
-        </>
       )}
 
       <style>{`
